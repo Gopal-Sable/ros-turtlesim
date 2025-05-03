@@ -5,6 +5,7 @@ export default function ControlPanel({ ros }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordedCommands, setRecordedCommands] = useState([]);
+  const [playbackDirection, setPlaybackDirection] = useState("forward");
   const cmdVelPublisherRef = useRef(null);
   const playbackTimeoutRef = useRef(null);
   const commandIndexRef = useRef(0);
@@ -46,47 +47,64 @@ export default function ControlPanel({ ros }) {
     setIsRecording(true);
     setIsPlaying(false);
     setRecordedCommands([]);
-    sendCommand(0, 0, false);
+    sendCommand(0, 0, false); 
   };
 
   const stopRecording = () => {
     setIsRecording(false);
 
-    // Normalize time differences
-    const baseTime = recordedCommands[0]?.timestamp || Date.now();
-    const normalized = recordedCommands.map((cmd, idx) => ({
-      ...cmd,
-      delay: idx === 0 ? 0 : cmd.timestamp - recordedCommands[idx - 1].timestamp,
-    }));
+    const normalized = recordedCommands.map((cmd, idx) => {
+      const delay =
+        idx === 0
+          ? 0
+          : Math.max(50, cmd.timestamp - recordedCommands[idx - 1].timestamp);
+      return { ...cmd, delay };
+    });
 
     setRecordedCommands(normalized);
     console.log("Final Recorded Commands:", normalized);
   };
 
-  const executeCommands = (index) => {
-    if (index >= recordedCommands.length) {
+  const executeCommands = (index, direction) => {
+    const isReverse = direction === "reverse";
+    const isFinished = isReverse
+      ? index < 0
+      : index >= recordedCommands.length;
+
+    if (isFinished) {
       setIsPlaying(false);
       sendCommand(0, 0, false);
       return;
     }
 
     const cmd = recordedCommands[index];
-    sendCommand(cmd.linear, cmd.angular, false);
+    const linear = isReverse ? -cmd.linear : cmd.linear;
+    const angular = isReverse ? -cmd.angular : cmd.angular;
+    sendCommand(linear, angular, false);
 
-    const delay = recordedCommands[index + 1]?.delay || 1000;
-    commandIndexRef.current = index + 1;
+    const nextIndex = isReverse ? index - 1 : index + 1;
+    commandIndexRef.current = index;
+
+    const delay = cmd.delay ?? 1000;
 
     playbackTimeoutRef.current = setTimeout(() => {
-      executeCommands(commandIndexRef.current);
+      executeCommands(nextIndex, direction);
     }, delay);
   };
 
-  const playRecording = () => {
+  const playRecording = (direction = "forward") => {
     if (recordedCommands.length === 0 || isPlaying) return;
 
     setIsPlaying(true);
-    commandIndexRef.current = 0;
-    executeCommands(0);
+    setPlaybackDirection(direction);
+
+    const startIndex =
+      direction === "reverse"
+        ? recordedCommands.length - 1
+        : 0;
+
+    commandIndexRef.current = startIndex;
+    executeCommands(startIndex, direction);
   };
 
   const stopPlayback = () => {
@@ -98,12 +116,23 @@ export default function ControlPanel({ ros }) {
   return (
     <div className="controls">
       <h2>Control Panel</h2>
+
       <div className="buttons">
-        <button onClick={() => sendCommand(1.0, 0.0)}>Forward</button>
-        <button onClick={() => sendCommand(-1.0, 0.0)}>Backward</button>
-        <button onClick={() => sendCommand(0.0, 1.0)}>Left</button>
-        <button onClick={() => sendCommand(0.0, -1.0)}>Right</button>
-        <button onClick={() => sendCommand(0.0, 0.0)}>Stop</button>
+        <button onClick={() => sendCommand(1.0, 0.0)} disabled={isPlaying}>
+          Forward
+        </button>
+        <button onClick={() => sendCommand(-1.0, 0.0)} disabled={isPlaying}>
+          Backward
+        </button>
+        <button onClick={() => sendCommand(0.0, 1.0)} disabled={isPlaying}>
+          Left
+        </button>
+        <button onClick={() => sendCommand(0.0, -1.0)} disabled={isPlaying}>
+          Right
+        </button>
+        <button onClick={() => sendCommand(0.0, 0.0)} disabled={isPlaying}>
+          Stop
+        </button>
       </div>
 
       <div className="record-playback">
@@ -115,16 +144,43 @@ export default function ControlPanel({ ros }) {
           <button onClick={stopRecording}>Stop Recording</button>
         )}
 
-        <button onClick={playRecording} disabled={isRecording || isPlaying}>
-          Play
+        <button
+          onClick={() => playRecording("forward")}
+          disabled={
+            isRecording || isPlaying || recordedCommands.length === 0
+          }
+        >
+          Play Forward
+        </button>
+        <button
+          onClick={() => playRecording("reverse")}
+          disabled={
+            isRecording || isPlaying || recordedCommands.length === 0
+          }
+        >
+          Play Backward
         </button>
         <button onClick={stopPlayback} disabled={!isPlaying}>
           Stop Playback
         </button>
       </div>
 
-      <p>Status: {isRecording ? "Recording" : isPlaying ? "Playing" : "Idle"}</p>
-      <p>Commands: {recordedCommands.length}</p>
+      <div className="status">
+        <p>
+          Status:{" "}
+          {isRecording
+            ? "Recording"
+            : isPlaying
+            ? `Playing ${playbackDirection}`
+            : "Idle"}
+        </p>
+        <p>Commands: {recordedCommands.length}</p>
+        {isPlaying && (
+          <p>
+            Current: {commandIndexRef.current + 1}/{recordedCommands.length}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
