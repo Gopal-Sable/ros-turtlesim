@@ -11,7 +11,7 @@ export default function App() {
     return (
         <div className="app">
             <ROSConnection setRos={setRos} />
-            <div style={{ width: "80vw", height: "70vh" }}>
+            <div style={{ width: "100vw", height: "70vh" }}>
                 <TurtleSimScene
                     ros={ros}
                     turtlePos={turtlePos}

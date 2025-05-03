@@ -1,8 +1,16 @@
-export default function Turtle({ position }) {
-    return (
-      <mesh position={position}>
-        <coneGeometry args={[0.5, 1, 3]} />
-        <meshStandardMaterial color="green" />
+export default function Turtle({ position, rotation }) {
+  const fixedRotation = [
+    rotation[0],
+    rotation[1],
+    -rotation[2] - Math.PI / 2, 
+  ];
+
+  return (
+    <group position={position} rotation={fixedRotation}>
+      <mesh>
+        <coneGeometry args={[0.4, 1, 4]} />
+        <meshStandardMaterial color="orange" />
       </mesh>
-    )
-  }
+    </group>
+  );
+}

@@ -17,7 +17,12 @@ export default function TurtleSimScene({ ros, turtlePos, setTurtlePos, pathPoint
     })
 
     poseSubscriber.subscribe((message) => {
-      setTurtlePos([message.x - 5.5, 5.5 - message.y, 0])
+      setTurtlePos({
+        x: message.x - 5.5,
+        y: 5.5 - message.y,
+        z: 0,
+        theta: message.theta // Add theta to the position state
+      })
       setPathPoints(prev => [...prev, new THREE.Vector3(message.x - 5.5, 5.5 - message.y, 0)])
     })
 
@@ -33,7 +38,7 @@ export default function TurtleSimScene({ ros, turtlePos, setTurtlePos, pathPoint
       
       <Grid args={[11, 11]} rotation={[Math.PI/2, 0, 0]} />
       
-      <Turtle position={turtlePos} />
+      <Turtle position={[turtlePos.x, turtlePos.y, turtlePos.z]} rotation={[0, 0, turtlePos.theta]} />
       <Path points={pathPoints} />
       
       <OrbitControls />
