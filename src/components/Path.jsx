@@ -1,13 +1,18 @@
+import { useMemo } from "react";
+import { Line } from "@react-three/drei";
 import * as THREE from 'three'
 
+
 export default function Path({ points }) {
-  if (!points || points.length < 2) return null
-
-  const lineGeometry = new THREE.BufferGeometry().setFromPoints(points)
-
+    const linePoints = points.length >= 2
+    ? points.flatMap((p) => [p.x, p.y, p.z ?? 0])
+    : null;
+  
   return (
-    <line geometry={lineGeometry}>
-      <lineBasicMaterial color="hotpink" linewidth={2} />
-    </line>
-  )
+    <>
+      {linePoints && linePoints.length % 3 === 0 && (
+        <Line points={linePoints} color="hotpink" lineWidth={2} />
+      )}
+    </>
+  );
 }

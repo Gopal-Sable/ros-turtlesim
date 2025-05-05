@@ -1,30 +1,50 @@
-import { useEffect } from 'react'
-import * as ROSLIB from 'roslib'
+import { useEffect } from "react";
+import * as ROSLIB from "roslib";
 
 export default function ROSConnection({ setRos }) {
-  useEffect(() => {
-    const ros = new ROSLIB.Ros({
-      url: 'ws://localhost:9090'
-    })
+    useEffect(() => {
+        let ros = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 3000;
 
-    ros.on('connection', () => {
-      console.log('Connected to ROS')
-      setRos(ros)
-    })
+        const connect = () => {
+            ros = new ROSLIB.Ros({
+                url: "ws://localhost:9090"
+            });
 
-    ros.on('error', (error) => {
-      console.log('Error connecting to ROS: ', error)
-    })
+            ros.on("connection", () => {
+                console.log("Connected to ROS");
+                reconnectAttempts = 0;
+                setRos(ros);
+            });
 
-    ros.on('close', () => {
-      console.log('Connection to ROS closed')
-      setRos(null)
-    })
+            ros.on("error", (error) => {
+                console.error("ROS connection error:", error);
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    setTimeout(connect, reconnectDelay);
+                    reconnectAttempts++;
+                }
+            });
 
-    return () => {
-      ros.close()
-    }
-  }, [setRos])
+            ros.on("close", () => {
+                console.log("ROS connection closed");
+                setRos(null);
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    setTimeout(connect, reconnectDelay);
+                    reconnectAttempts++;
+                }
+            });
+        };
 
-  return null
+        connect();
+
+        return () => {
+            if (ros && ros.isConnected) {
+                ros.close();
+            }
+        };
+    }, [setRos]);
+
+    return null;
 }
