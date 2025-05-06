@@ -19,7 +19,7 @@ export default function TurtleSimScene({
 }) {
     useEffect(() => {
         if (!ros || !ros.isConnected) return;
-    
+
         const poseSubscriber = new ROSLIB.Topic({
             ros: ros,
             name: "/turtle1/pose",
@@ -42,9 +42,9 @@ export default function TurtleSimScene({
     }, [ros, setTurtlePos]);
 
     const handleNodeClick = (node, type) => {
-        setSelectedNodes(prev => ({
+        setSelectedNodes((prev) => ({
             ...prev,
-            [type]: node
+            [type]: node,
         }));
     };
 
@@ -62,13 +62,19 @@ export default function TurtleSimScene({
 
             {/* Start Node */}
             {recordingStartIndex !== null && pathPoints[recordingStartIndex] && (
-                <mesh 
+                <mesh
                     position={pathPoints[recordingStartIndex]}
-                    onClick={() => handleNodeClick(pathPoints[recordingStartIndex], "start")}
+                    onClick={() =>
+                        handleNodeClick(pathPoints[recordingStartIndex], "start")
+                    }
                 >
                     <sphereGeometry args={[0.3, 32, 32]} />
-                    <meshStandardMaterial 
-                        color={selectedNodes.start === pathPoints[recordingStartIndex] ? "gold" : "lime"} 
+                    <meshStandardMaterial
+                        color={
+                            selectedNodes.start?.equals(pathPoints[recordingStartIndex])
+                                ? "gold"
+                                : "lime"
+                        }
                         emissive="green"
                         emissiveIntensity={0.5}
                     />
@@ -77,13 +83,19 @@ export default function TurtleSimScene({
 
             {/* End Node */}
             {recordingEndIndex !== null && pathPoints[recordingEndIndex] && (
-                <mesh 
+                <mesh
                     position={pathPoints[recordingEndIndex]}
-                    onClick={() => handleNodeClick(pathPoints[recordingEndIndex], "end")}
+                    onClick={() =>
+                        handleNodeClick(pathPoints[recordingEndIndex], "end")
+                    }
                 >
                     <sphereGeometry args={[0.3, 32, 32]} />
-                    <meshStandardMaterial 
-                        color={selectedNodes.end === pathPoints[recordingEndIndex] ? "gold" : "red"} 
+                    <meshStandardMaterial
+                        color={
+                            selectedNodes.end?.equals(pathPoints[recordingEndIndex])
+                                ? "gold"
+                                : "red"
+                        }
                         emissive="red"
                         emissiveIntensity={0.5}
                     />

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ROSLIB from "roslib";
 import * as THREE from "three";
+import { basePathURL } from "../utils/constants";
 export default function ControlPanel({
     ros,
     setRecordingStartIndex,
@@ -8,14 +9,18 @@ export default function ControlPanel({
     pathPoints,
     setPathPoints,
     selectedNodes,
+    recordingStartIndex,
+    setSelectedNodes,
+    recordingEndIndex,
 }) {
     const [isRecording, setIsRecording] = useState(false);
-    const [playbackDirection, setPlaybackDirection] = useState("forward"); // 'forward' or 'backward'
+    const [playbackDirection, setPlaybackDirection] = useState("forward");
     const [isPlaying, setIsPlaying] = useState(false);
     const cmdVelPublisherRef = useRef(null);
     const playbackTimeoutRef = useRef(null);
     const currentPoseRef = useRef(null);
-
+    const [savedPaths, setSavedPaths] = useState([]);
+    const [selectedPath, setSelectedPath] = useState("");
     useEffect(() => {
         if (!ros) return;
 
@@ -42,6 +47,15 @@ export default function ControlPanel({
                 setPathPoints((prev) => [...prev, newPoint]);
             }
         });
+        fetch(basePathURL, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        })
+            .then((res) => res.json())
+            .then((data) => setSavedPaths([...data]))
+            .catch((error) => console.log(error));
 
         return () => {
             poseSubscriber.unsubscribe();
@@ -63,9 +77,23 @@ export default function ControlPanel({
         sendCommand(0, 0);
     };
 
-    const stopRecording = () => {
+    const stopRecording = async () => {
         setIsRecording(false);
         setRecordingEndIndex(pathPoints.length - 1);
+        const res = await fetch(basePathURL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                name: "path_" + Date.now(),
+                path: pathPoints.map((p) => ({ x: p.x, y: p.y, z: p.z })),
+                start: recordingStartIndex,
+                end: pathPoints.length - 1,
+            }),
+        });
+        const data = await res.json();
+        setSavedPaths((prev) => [...prev, data]);
     };
 
     const teleportToNode = (node) => {
@@ -157,9 +185,9 @@ export default function ControlPanel({
     const followRosPath = async (pathSegment) => {
         if (!pathSegment || pathSegment.length < 2) return;
 
-        const pointThreshold = 1;
-        const commandDelay = 50;
-        const maxLinearSpeed = 4.0;
+        const pointThreshold = 0.21;
+        const commandDelay = 1;
+        const maxLinearSpeed = 8.0;
         const maxAngularSpeed = 2.0;
 
         for (let i = 0; i < pathSegment.length - 1; i++) {
@@ -185,13 +213,11 @@ export default function ControlPanel({
                 angleDiff = ((angleDiff + Math.PI) % (2 * Math.PI)) - Math.PI;
 
                 if (Math.abs(angleDiff) > 0.1) {
-                    // ~5.7 degrees
                     const angular =
                         Math.sign(angleDiff) *
                         Math.min(maxAngularSpeed, Math.abs(angleDiff));
                     sendCommand(0, angular);
-                }
-                else {
+                } else {
                     const linear = Math.min(maxLinearSpeed, distance);
                     sendCommand(linear, 0);
                 }
@@ -243,7 +269,68 @@ export default function ControlPanel({
                     <button onClick={stopRecording}>Stop Recording</button>
                 )}
             </div>
+            <div className="show-paths">
+                <select
+                    name="selectPath"
+                    id="selectPath"
+                    value={selectedPath}
+                    // Update the select onChange handler
+                    onChange={(e) => {
+                        if (isPlaying) return;
+                        const pathId = e.target.value;
+                        setSelectedPath(pathId);
 
+                        fetch(`${basePathURL}/${pathId}`)
+                            .then((res) => res.json())
+                            .then((data) => {
+                                if (!data?.path)
+                                    throw new Error("Invalid path data");
+
+                                // Convert path points to THREE.Vector3 array
+                                const vectorPoints = data.path.map(
+                                    (p) => new THREE.Vector3(p.x, p.y, p.z)
+                                );
+                                setPathPoints(vectorPoints);
+
+                                // Update recording indices
+                                setRecordingStartIndex(data.start || 0);
+                                setRecordingEndIndex(
+                                    data.end || vectorPoints.length - 1
+                                );
+
+                                // Set selected nodes (ensure they exist in the path)
+                                const startIdx = Math.min(
+                                    data.start || 0,
+                                    vectorPoints.length - 1
+                                );
+                                const endIdx = Math.min(
+                                    data.end || vectorPoints.length - 1,
+                                    vectorPoints.length - 1
+                                );
+
+                                setSelectedNodes({
+                                    start: vectorPoints[startIdx],
+                                    end: vectorPoints[endIdx],
+                                });
+                            })
+                            .catch((error) => {
+                                console.error("Error loading path:", error);
+                                // Reset to empty path if loading fails
+                                setPathPoints([]);
+                                setSelectedNodes({});
+                            });
+                    }}
+                >
+                    <option>Select Path</option>
+                    {savedPaths.map(({ _id, name }) => {
+                        return (
+                            <option key={_id} value={_id}>
+                                {name}
+                            </option>
+                        );
+                    })}
+                </select>
+            </div>
             <div className="path-execution">
                 <button
                     onClick={() =>
