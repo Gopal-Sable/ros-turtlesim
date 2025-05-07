@@ -5,6 +5,7 @@ const initialState = {
     turtlePos: { x: 0, y: 0, z: 0, theta: 0 },
     pathPoints: [],
     playbackDirection: true,
+    status: "idel",
 };
 const appConfigSlice = createSlice({
     name: "appConfig",
@@ -28,9 +29,19 @@ const appConfigSlice = createSlice({
         setPlaybackDirection(state, action) {
             state.playbackDirection = action.payload;
         },
+        setStatus(state, action) {
+            state.status = action.payload;
+        },
     },
 });
 
-export const { resetConfig, setRos, setPath, addPathPoints, setTurtlePos, setPlaybackDirection } =
-    appConfigSlice.actions;
+export const {
+    resetConfig,
+    setRos,
+    setPath,
+    addPathPoints,
+    setTurtlePos,
+    setPlaybackDirection,
+    setStatus,
+} = appConfigSlice.actions;
 export default appConfigSlice.reducer;

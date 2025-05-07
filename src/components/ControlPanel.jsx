@@ -3,10 +3,10 @@ import ROSLIB from "roslib";
 import * as THREE from "three";
 import { basePathURL } from "../utils/constants";
 import { useDispatch, useSelector } from "react-redux";
-import { addPathPoints, setPath } from "../store/appConfigSlice";
+import { addPathPoints, setPath, setStatus } from "../store/appConfigSlice";
 export default function ControlPanel() {
-    const [isRecording, setIsRecording] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
+    // const [isRecording, setIsRecording] = useState(false);
+    // const [isPlaying, setIsPlaying] = useState(false);
 
     const cmdVelPublisherRef = useRef(null);
     const playbackTimeoutRef = useRef(null);
@@ -15,10 +15,8 @@ export default function ControlPanel() {
     const [savedPaths, setSavedPaths] = useState([]);
     const [selectedPath, setSelectedPath] = useState("");
 
-    const ros = useSelector((store) => store.appConfig.ros);
-    const pathPoints = useSelector((store) => store.appConfig.pathPoints);
-    const playbackDirection = useSelector(
-        (store) => store.appConfig.playbackDirection
+    const { ros, pathPoints, playbackDirection, status } = useSelector(
+        (store) => store.appConfig
     );
 
     const dispatch = useDispatch();
@@ -40,7 +38,7 @@ export default function ControlPanel() {
 
         poseSubscriber.subscribe((pose) => {
             currentPoseRef.current = pose;
-            if (isRecording) {
+            if (status === "recording") {
                 const newPoint = new THREE.Vector3(
                     pose.x - 5.5,
                     5.5 - pose.y,
@@ -62,7 +60,7 @@ export default function ControlPanel() {
         return () => {
             poseSubscriber.unsubscribe();
         };
-    }, [ros, isRecording]);
+    }, [ros, status]);
 
     const sendCommand = (linear, angular) => {
         if (!cmdVelPublisherRef.current || !ros || !ros.isConnected) return;
@@ -74,13 +72,13 @@ export default function ControlPanel() {
     };
 
     const startRecording = () => {
+        dispatch(setStatus("recording"));
         dispatch(setPath([]));
-        setIsRecording(true);
         sendCommand(0, 0);
     };
 
     const stopRecording = async () => {
-        setIsRecording(false);
+        dispatch(setStatus("idel"));
         try {
             const res = await fetch(basePathURL, {
                 method: "POST",
@@ -131,11 +129,10 @@ export default function ControlPanel() {
         });
     };
     const executePath = async () => {
-        if (!ros?.isConnected || isPlaying) {
+        if (!ros?.isConnected || status === "playing") {
             return;
         }
-
-        setIsPlaying(true);
+        dispatch(setStatus("playing"));
         clearTimeout(playbackTimeoutRef.current);
 
         try {
@@ -163,7 +160,7 @@ export default function ControlPanel() {
         } catch (error) {
             console.error("Path execution failed:", error);
         } finally {
-            setIsPlaying(false);
+            dispatch(setStatus("idel"));
         }
     };
 
@@ -221,38 +218,44 @@ export default function ControlPanel() {
             <div className="movement-controls">
                 <button
                     onClick={() => sendCommand(1.0, 0)}
-                    disabled={isPlaying}
+                    disabled={status === "playing"}
                 >
                     Forward
                 </button>
                 <button
                     onClick={() => sendCommand(-1.0, 0)}
-                    disabled={isPlaying}
+                    disabled={status === "playing"}
                 >
                     Backward
                 </button>
                 <button
                     onClick={() => sendCommand(0, 1.0)}
-                    disabled={isPlaying}
+                    disabled={status === "playing"}
                 >
                     Left
                 </button>
                 <button
                     onClick={() => sendCommand(0, -1.0)}
-                    disabled={isPlaying}
+                    disabled={status === "playing"}
                 >
                     Right
                 </button>
             </div>
 
             <div className="recording-controls">
-                {!isRecording ? (
-                    <button onClick={startRecording} disabled={isPlaying}>
+                {status !== "recording" ? (
+                    <button
+                        onClick={startRecording}
+                        disabled={status === "playing"}
+                    >
                         Start Recording
                     </button>
                 ) : (
                     <button onClick={stopRecording}>Stop Recording</button>
                 )}
+                <button onClick={executePath} disabled={status === "recording"}>
+                    Execute Path
+                </button>
             </div>
             <div className="show-paths">
                 <select
@@ -260,7 +263,7 @@ export default function ControlPanel() {
                     id="selectPath"
                     value={selectedPath}
                     onChange={(e) => {
-                        if (isPlaying) return;
+                        if (status === "playing") return;
                         const pathId = e.target.value;
                         setSelectedPath(pathId);
 
@@ -286,17 +289,23 @@ export default function ControlPanel() {
                     <option>Select Path</option>
                     {savedPaths.map(({ _id, name }) => {
                         return (
-                            <option key={_id} value={_id}>
+                            <option
+                                key={_id}
+                                value={_id}
+                                style={
+                                    selectedPath === _id
+                                        ? {
+                                              backgroundColor: "green",
+                                              color: "white",
+                                          }
+                                        : {}
+                                }
+                            >
                                 {name}
                             </option>
                         );
                     })}
                 </select>
-            </div>
-            <div className="path-execution">
-                <button onClick={executePath} disabled={isRecording}>
-                    Execute Path
-                </button>
             </div>
         </div>
     );

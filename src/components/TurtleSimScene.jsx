@@ -10,12 +10,11 @@ import { setPlaybackDirection, setTurtlePos } from "../store/appConfigSlice";
 
 export default function TurtleSimScene() {
     const dispatch = useDispatch();
-    const ros = useSelector((store) => store.appConfig.ros);
     // add this to path marker
-    const pathPoints = useSelector((store) => store.appConfig.pathPoints);
-    const playbackDirection = useSelector(
-        (store) => store.appConfig.playbackDirection
+    const { pathPoints, playbackDirection, status, ros } = useSelector(
+        (store) => store.appConfig
     );
+
     ////
     useEffect(() => {
         if (!ros || !ros.isConnected) return;
@@ -51,10 +50,10 @@ export default function TurtleSimScene() {
     };
 
     return (
-        <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
+        <Canvas camera={{ position: [0, 0, 15], fov: 50 }}>
             <ambientLight intensity={0.5} />
             <pointLight position={[10, 10, 10]} />
-            <Grid args={[20, 20]} rotation={[Math.PI / 2, 0, 0]} />
+            <Grid args={[12, 12]} rotation={[Math.PI / 2, 0, 0]} />
 
             <Turtle />
             <Path />
@@ -78,7 +77,7 @@ export default function TurtleSimScene() {
             )}
 
             {/* End Node */}
-            {pathPoints[pathPoints.length - 1] && (
+            {pathPoints[pathPoints.length - 1] && status !== "recording" && (
                 <mesh
                     position={pathPoints[pathPoints.length - 1]}
                     onClick={() => handleNodeClick(false)}
@@ -93,9 +92,6 @@ export default function TurtleSimScene() {
             )}
 
             <OrbitControls />
-            <Text position={[0, -12, 0]} fontSize={0.5} color="black">
-                Turtlesim Path Recorder
-            </Text>
         </Canvas>
     );
 }

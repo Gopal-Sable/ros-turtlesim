@@ -2,11 +2,16 @@
     padding: 1rem;
     background: #f5f5f5;
     display: flex;
+    position: absolute;
+    top: 16px;
+    left: 16px;
     flex-direction: column;
     gap: 1rem;
 }
 
-.movement-controls, .recording-controls, .path-execution {
+.movement-controls,
+.recording-controls,
+.path-execution {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
@@ -14,7 +19,7 @@
 
 button {
     padding: 0.5rem 1rem;
-    background: #4CAF50;
+    background: #4caf50;
     color: white;
     border: none;
     border-radius: 4px;
@@ -28,4 +33,12 @@ button:disabled {
 
 button:hover:not(:disabled) {
     opacity: 0.8;
+}
+select {
+    width: 100%;
+    padding: 12px;
+}
+option {
+    padding: 16px;
+    margin: 12px;
 }
