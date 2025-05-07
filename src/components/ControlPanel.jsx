@@ -12,9 +12,9 @@ export default function ControlPanel({
     recordingStartIndex,
     setSelectedNodes,
     recordingEndIndex,
+    playbackDirection,
 }) {
     const [isRecording, setIsRecording] = useState(false);
-    const [playbackDirection, setPlaybackDirection] = useState("forward");
     const [isPlaying, setIsPlaying] = useState(false);
     const cmdVelPublisherRef = useRef(null);
     const playbackTimeoutRef = useRef(null);
@@ -72,28 +72,33 @@ export default function ControlPanel({
     };
 
     const startRecording = () => {
+        setPathPoints([]);
         setIsRecording(true);
-        setRecordingStartIndex(pathPoints.length);
         sendCommand(0, 0);
+        setRecordingStartIndex(pathPoints.length);
     };
 
     const stopRecording = async () => {
         setIsRecording(false);
         setRecordingEndIndex(pathPoints.length - 1);
-        const res = await fetch(basePathURL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: "path_" + Date.now(),
-                path: pathPoints.map((p) => ({ x: p.x, y: p.y, z: p.z })),
-                start: recordingStartIndex,
-                end: pathPoints.length - 1,
-            }),
-        });
-        const data = await res.json();
-        setSavedPaths((prev) => [...prev, data]);
+        try {
+            const res = await fetch(basePathURL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: "path_" + Date.now(),
+                    path: pathPoints.map((p) => ({ x: p.x, y: p.y, z: p.z })),
+                    start: recordingStartIndex,
+                    end: pathPoints.length - 1,
+                }),
+            });
+            const data = await res.json();
+            setSavedPaths((prev) => [...prev, data]);
+        } catch (error) {
+            console.log(error);
+        }
     };
 
     const teleportToNode = (node) => {
@@ -139,7 +144,6 @@ export default function ControlPanel({
         clearTimeout(playbackTimeoutRef.current);
 
         try {
-            // Find the exact points in the path that match our selected nodes
             const findExactPointIndex = (targetNode) => {
                 return pathPoints.findIndex(
                     (p) =>
@@ -274,7 +278,6 @@ export default function ControlPanel({
                     name="selectPath"
                     id="selectPath"
                     value={selectedPath}
-                    // Update the select onChange handler
                     onChange={(e) => {
                         if (isPlaying) return;
                         const pathId = e.target.value;
@@ -283,7 +286,7 @@ export default function ControlPanel({
                         fetch(`${basePathURL}/${pathId}`)
                             .then((res) => res.json())
                             .then((data) => {
-                                if (!data?.path)
+                                if (!data.path)
                                     throw new Error("Invalid path data");
 
                                 // Convert path points to THREE.Vector3 array
@@ -293,24 +296,12 @@ export default function ControlPanel({
                                 setPathPoints(vectorPoints);
 
                                 // Update recording indices
-                                setRecordingStartIndex(data.start || 0);
-                                setRecordingEndIndex(
-                                    data.end || vectorPoints.length - 1
-                                );
-
-                                // Set selected nodes (ensure they exist in the path)
-                                const startIdx = Math.min(
-                                    data.start || 0,
-                                    vectorPoints.length - 1
-                                );
-                                const endIdx = Math.min(
-                                    data.end || vectorPoints.length - 1,
-                                    vectorPoints.length - 1
-                                );
+                                setRecordingStartIndex(0);
+                                setRecordingEndIndex(vectorPoints.length - 1);
 
                                 setSelectedNodes({
-                                    start: vectorPoints[startIdx],
-                                    end: vectorPoints[endIdx],
+                                    start: vectorPoints[0],
+                                    end: vectorPoints[vectorPoints.length - 1],
                                 });
                             })
                             .catch((error) => {
@@ -332,15 +323,15 @@ export default function ControlPanel({
                 </select>
             </div>
             <div className="path-execution">
-                <button
-                    onClick={() =>
-                        setPlaybackDirection((prev) =>
-                            prev === "forward" ? "backward" : "forward"
+                {/* <button
+                    // onClick={() =>
+                    //     setPlaybackDirection((prev) =>
+                    //         prev === "forward" ? "backward" : "forward"
                         )
                     }
                 >
                     Toggle Direction: {playbackDirection}
-                </button>
+                </button> */}
                 <button
                     onClick={executePath}
                     disabled={

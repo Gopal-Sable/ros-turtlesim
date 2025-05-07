@@ -12,7 +12,7 @@ router.post("/", async (req, res) => {
                 .status(400)
                 .json({ message: "Name and path are required." });
         }
-
+    
         const newPath = new Path({ name, path });
         const savedPath = await newPath.save();
         res.status(201).json(savedPath);

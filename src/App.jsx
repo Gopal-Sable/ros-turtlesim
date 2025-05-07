@@ -9,12 +9,16 @@ export default function App() {
     const [pathPoints, setPathPoints] = useState([]);
     const [recordingStartIndex, setRecordingStartIndex] = useState(null);
     const [recordingEndIndex, setRecordingEndIndex] = useState(null);
-    const [selectedNodes, setSelectedNodes] = useState({ start: null, end: null });
+    const [playbackDirection, setPlaybackDirection] = useState("forward");
+    const [selectedNodes, setSelectedNodes] = useState({
+        start: null,
+        end: null,
+    });
 
     return (
         <div className="app">
             <ROSConnection setRos={setRos} />
-            <div style={{ width: "100vw", height: "70vh" }}>
+            <div style={{ width: "100vw", height: "80vh" }}>
                 <TurtleSimScene
                     ros={ros}
                     turtlePos={turtlePos}
@@ -25,6 +29,8 @@ export default function App() {
                     recordingEndIndex={recordingEndIndex}
                     selectedNodes={selectedNodes}
                     setSelectedNodes={setSelectedNodes}
+                    setPlaybackDirection={setPlaybackDirection}
+                    playbackDirection={playbackDirection}
                 />
             </div>
             <ControlPanel
@@ -38,6 +44,7 @@ export default function App() {
                 selectedNodes={selectedNodes}
                 setTurtlePos={setTurtlePos}
                 setSelectedNodes={setSelectedNodes}
+                playbackDirection={playbackDirection}
             />
         </div>
     );
