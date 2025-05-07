@@ -1,7 +1,10 @@
 import { useEffect } from "react";
+import { useDispatch } from "react-redux";
 import * as ROSLIB from "roslib";
+import { setRos } from "../store/appConfigSlice";
 
-export default function ROSConnection({ setRos }) {
+export default function ROSConnection() {
+    const dispatch = useDispatch();
     useEffect(() => {
         let ros = null;
         let reconnectAttempts = 0;
@@ -10,13 +13,13 @@ export default function ROSConnection({ setRos }) {
 
         const connect = () => {
             ros = new ROSLIB.Ros({
-                url: "ws://localhost:9090"
+                url: "ws://localhost:9090",
             });
 
             ros.on("connection", () => {
                 console.log("Connected to ROS");
                 reconnectAttempts = 0;
-                setRos(ros);
+                dispatch(setRos(ros));
             });
 
             ros.on("error", (error) => {
@@ -29,7 +32,7 @@ export default function ROSConnection({ setRos }) {
 
             ros.on("close", () => {
                 console.log("ROS connection closed");
-                setRos(null);
+                dispatch(setRos(null));
                 if (reconnectAttempts < maxReconnectAttempts) {
                     setTimeout(connect, reconnectDelay);
                     reconnectAttempts++;
@@ -44,7 +47,7 @@ export default function ROSConnection({ setRos }) {
                 ros.close();
             }
         };
-    }, [setRos]);
+    });
 
     return null;
 }

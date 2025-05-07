@@ -1,10 +1,13 @@
-import { useMemo } from "react";
 import { Line } from "@react-three/drei";
-import * as THREE from "three";
+// import * as THREE from "three";
+import { useSelector } from "react-redux";
 
-export default function Path({ points }) {
+export default function Path() {
+    const pathPoints = useSelector((store) => store.appConfig.pathPoints);
     const linePoints =
-        points.length >= 2 ? points.flatMap((p) => [p.x, p.y, p.z ?? 0]) : null;
+        pathPoints.length >= 2
+            ? pathPoints.flatMap((p) => [p.x, p.y, p.z ?? 0])
+            : null;
 
     return (
         <>

@@ -2,25 +2,27 @@ import { useState, useEffect, useRef } from "react";
 import ROSLIB from "roslib";
 import * as THREE from "three";
 import { basePathURL } from "../utils/constants";
-export default function ControlPanel({
-    ros,
-    setRecordingStartIndex,
-    setRecordingEndIndex,
-    pathPoints,
-    setPathPoints,
-    selectedNodes,
-    recordingStartIndex,
-    setSelectedNodes,
-    recordingEndIndex,
-    playbackDirection,
-}) {
+import { useDispatch, useSelector } from "react-redux";
+import { addPathPoints, setPath } from "../store/appConfigSlice";
+export default function ControlPanel() {
     const [isRecording, setIsRecording] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
+
     const cmdVelPublisherRef = useRef(null);
     const playbackTimeoutRef = useRef(null);
     const currentPoseRef = useRef(null);
+
     const [savedPaths, setSavedPaths] = useState([]);
     const [selectedPath, setSelectedPath] = useState("");
+
+    const ros = useSelector((store) => store.appConfig.ros);
+    const pathPoints = useSelector((store) => store.appConfig.pathPoints);
+    const playbackDirection = useSelector(
+        (store) => store.appConfig.playbackDirection
+    );
+
+    const dispatch = useDispatch();
+
     useEffect(() => {
         if (!ros) return;
 
@@ -44,7 +46,7 @@ export default function ControlPanel({
                     5.5 - pose.y,
                     0
                 );
-                setPathPoints((prev) => [...prev, newPoint]);
+                dispatch(addPathPoints(newPoint));
             }
         });
         fetch(basePathURL, {
@@ -72,15 +74,13 @@ export default function ControlPanel({
     };
 
     const startRecording = () => {
-        setPathPoints([]);
+        dispatch(setPath([]));
         setIsRecording(true);
         sendCommand(0, 0);
-        setRecordingStartIndex(pathPoints.length);
     };
 
     const stopRecording = async () => {
         setIsRecording(false);
-        setRecordingEndIndex(pathPoints.length - 1);
         try {
             const res = await fetch(basePathURL, {
                 method: "POST",
@@ -90,7 +90,7 @@ export default function ControlPanel({
                 body: JSON.stringify({
                     name: "path_" + Date.now(),
                     path: pathPoints.map((p) => ({ x: p.x, y: p.y, z: p.z })),
-                    start: recordingStartIndex,
+                    start: 0,
                     end: pathPoints.length - 1,
                 }),
             });
@@ -131,12 +131,7 @@ export default function ControlPanel({
         });
     };
     const executePath = async () => {
-        if (
-            !selectedNodes?.start ||
-            !selectedNodes?.end ||
-            !ros?.isConnected ||
-            isPlaying
-        ) {
+        if (!ros?.isConnected || isPlaying) {
             return;
         }
 
@@ -144,33 +139,19 @@ export default function ControlPanel({
         clearTimeout(playbackTimeoutRef.current);
 
         try {
-            const findExactPointIndex = (targetNode) => {
-                return pathPoints.findIndex(
-                    (p) =>
-                        Math.abs(p.x - targetNode.x) < 0.01 &&
-                        Math.abs(p.y - targetNode.y) < 0.01
-                );
-            };
-
-            const startIdx = findExactPointIndex(selectedNodes.start);
-            const endIdx = findExactPointIndex(selectedNodes.end);
-
-            if (startIdx === -1 || endIdx === -1) {
-                throw new Error("Selected points not found in path");
-            }
-
-            // Get the path segment based on direction
             let pathSegment;
-            if (playbackDirection === "forward") {
+            const pathEndIdx = pathPoints.length - 1;
+            const startIdx = 0;
+            if (playbackDirection) {
                 pathSegment =
-                    startIdx < endIdx
-                        ? pathPoints.slice(startIdx, endIdx + 1)
-                        : pathPoints.slice(endIdx, startIdx + 1).reverse();
+                    startIdx < pathEndIdx
+                        ? pathPoints.slice(startIdx, pathEndIdx + 1)
+                        : pathPoints.slice(pathEndIdx, startIdx + 1).reverse();
             } else {
                 pathSegment =
-                    startIdx < endIdx
-                        ? pathPoints.slice(startIdx, endIdx + 1).reverse()
-                        : pathPoints.slice(endIdx, startIdx + 1);
+                    startIdx < pathEndIdx
+                        ? pathPoints.slice(startIdx, pathEndIdx + 1).reverse()
+                        : pathPoints.slice(pathEndIdx, startIdx + 1);
             }
 
             await teleportToNode({
@@ -293,22 +274,12 @@ export default function ControlPanel({
                                 const vectorPoints = data.path.map(
                                     (p) => new THREE.Vector3(p.x, p.y, p.z)
                                 );
-                                setPathPoints(vectorPoints);
-
-                                // Update recording indices
-                                setRecordingStartIndex(0);
-                                setRecordingEndIndex(vectorPoints.length - 1);
-
-                                setSelectedNodes({
-                                    start: vectorPoints[0],
-                                    end: vectorPoints[vectorPoints.length - 1],
-                                });
+                                dispatch(setPath(vectorPoints));
                             })
                             .catch((error) => {
                                 console.error("Error loading path:", error);
                                 // Reset to empty path if loading fails
-                                setPathPoints([]);
-                                setSelectedNodes({});
+                                dispatch(setPath([]));
                             });
                     }}
                 >
@@ -323,23 +294,7 @@ export default function ControlPanel({
                 </select>
             </div>
             <div className="path-execution">
-                {/* <button
-                    // onClick={() =>
-                    //     setPlaybackDirection((prev) =>
-                    //         prev === "forward" ? "backward" : "forward"
-                        )
-                    }
-                >
-                    Toggle Direction: {playbackDirection}
-                </button> */}
-                <button
-                    onClick={executePath}
-                    disabled={
-                        !selectedNodes.start ||
-                        !selectedNodes.end ||
-                        isRecording
-                    }
-                >
+                <button onClick={executePath} disabled={isRecording}>
                     Execute Path
                 </button>
             </div>

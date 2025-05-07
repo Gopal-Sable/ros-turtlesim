@@ -5,20 +5,18 @@ import { OrbitControls, Text, Grid } from "@react-three/drei";
 import Turtle from "./Turtle";
 import Path from "./Path";
 import ROSLIB from "roslib";
+import { useDispatch, useSelector } from "react-redux";
+import { setPlaybackDirection, setTurtlePos } from "../store/appConfigSlice";
 
-export default function TurtleSimScene({
-    ros,
-    turtlePos,
-    setTurtlePos,
-    pathPoints,
-    setPathPoints,
-    recordingStartIndex,
-    recordingEndIndex,
-    selectedNodes,
-    setSelectedNodes,
-    setPlaybackDirection,
-    playbackDirection,
-}) {
+export default function TurtleSimScene() {
+    const dispatch = useDispatch();
+    const ros = useSelector((store) => store.appConfig.ros);
+    // add this to path marker
+    const pathPoints = useSelector((store) => store.appConfig.pathPoints);
+    const playbackDirection = useSelector(
+        (store) => store.appConfig.playbackDirection
+    );
+    ////
     useEffect(() => {
         if (!ros || !ros.isConnected) return;
 
@@ -34,25 +32,22 @@ export default function TurtleSimScene({
                 5.5 - message.y,
                 0
             );
-            setTurtlePos({
-                x: newPoint.x,
-                y: newPoint.y,
+            const vectorPoints = {
+                x: message.x - 5.5,
+                y: 5.5 - message.y,
                 z: 0,
                 theta: message.theta,
-            });
+            };
+            dispatch(setTurtlePos(vectorPoints));
         });
 
         return () => {
             poseSubscriber.unsubscribe();
         };
-    }, [ros, setTurtlePos]);
+    }, [ros]);
 
-    const handleNodeClick = (node, type) => {
-        setSelectedNodes((prev) => ({
-            ...prev,
-            [type]: node,
-        }));
-        setPlaybackDirection(() => (type === "start" ? "forward" : "backword"));
+    const handleNodeClick = (direction) => {
+        dispatch(setPlaybackDirection(direction));
     };
 
     return (
@@ -61,50 +56,36 @@ export default function TurtleSimScene({
             <pointLight position={[10, 10, 10]} />
             <Grid args={[20, 20]} rotation={[Math.PI / 2, 0, 0]} />
 
-            <Turtle
-                position={[turtlePos.x, turtlePos.y, turtlePos.z]}
-                rotation={[0, 0, turtlePos.theta]}
-            />
-            <Path points={pathPoints} />
+            <Turtle />
+            <Path />
 
             {/* Start Node */}
-            {recordingStartIndex !== null &&
-                pathPoints[recordingStartIndex] && (
-                    <mesh
-                        position={pathPoints[recordingStartIndex]}
-                        onClick={() =>
-                            handleNodeClick(
-                                pathPoints[recordingStartIndex],
-                                "start"
-                            )
-                        }
-                    >
-                        <sphereGeometry args={[0.3, 32, 32]} />
-                        <meshStandardMaterial
-                            color={
-                                playbackDirection === "forward"
-                                    ? "yellow"
-                                    : "black"
-                            }
-                            emissive="black"
-                            emissiveIntensity={0.5}
-                        />
-                    </mesh>
-                )}
 
-            {/* End Node */}
-            {recordingEndIndex !== null && pathPoints[recordingEndIndex] && (
+            {/* <PathMarker start={true} />
+            <PathMarker start={false} /> */}
+            {pathPoints[0] && (
                 <mesh
-                    position={pathPoints[recordingEndIndex]}
-                    onClick={() =>
-                        handleNodeClick(pathPoints[recordingEndIndex], "end")
-                    }
+                    position={pathPoints[0]}
+                    onClick={() => handleNodeClick(true)}
                 >
                     <sphereGeometry args={[0.3, 32, 32]} />
                     <meshStandardMaterial
-                        color={
-                            playbackDirection === "backword" ? "yellow" : "black"
-                        }
+                        color={playbackDirection ? "yellow" : "black"}
+                        emissive="black"
+                        emissiveIntensity={0.5}
+                    />
+                </mesh>
+            )}
+
+            {/* End Node */}
+            {pathPoints[pathPoints.length - 1] && (
+                <mesh
+                    position={pathPoints[pathPoints.length - 1]}
+                    onClick={() => handleNodeClick(false)}
+                >
+                    <sphereGeometry args={[0.3, 32, 32]} />
+                    <meshStandardMaterial
+                        color={!playbackDirection ? "yellow" : "black"}
                         emissive="black"
                         emissiveIntensity={0.5}
                     />
@@ -115,6 +96,6 @@ export default function TurtleSimScene({
             <Text position={[0, -12, 0]} fontSize={0.5} color="black">
                 Turtlesim Path Recorder
             </Text>
-        </Canvas> 
+        </Canvas>
     );
 }

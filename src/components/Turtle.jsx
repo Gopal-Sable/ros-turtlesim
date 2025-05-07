@@ -1,10 +1,9 @@
-export default function Turtle({ position, rotation }) {
-    const fixedRotation = [
-        rotation[0],
-        rotation[1],
-        -rotation[2] - Math.PI / 2,
-    ];
+import { useSelector } from "react-redux";
 
+export default function Turtle() {
+    const turtlePos = useSelector((store) => store.appConfig.turtlePos);
+    const fixedRotation = [0, 0, -turtlePos.theta - Math.PI / 2];
+    const position = [turtlePos.x, turtlePos.y, turtlePos.z];
     return (
         <group position={position} rotation={fixedRotation}>
             <mesh>
