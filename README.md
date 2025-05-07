@@ -1,2 +1,2 @@
 # Turtle Sim path simulator
-- [Sample video](https://drive.google.com/file/d/1JpuXiMQQ-yyfap0RDyzLLt7C3pWQvNZN/view?usp=drive_link)
+- [Sample video](https://drive.google.com/file/d/1oS0PIMOJy86gam-KtEOtgIt-jIjNgikk/view?usp=sharing)
